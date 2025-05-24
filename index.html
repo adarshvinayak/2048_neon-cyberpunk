@@ -56,7 +56,7 @@
             box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
             backdrop-filter: blur(10px);
             transform-origin: center center;
-            margin-top: 15vh; /* Reduced from 25vh */
+            margin-top: 10vh;
         }
 
         h1 {
@@ -133,6 +133,8 @@
             white-space: nowrap;
             flex: 1; /* Make buttons equal width */
             min-width: 0; /* Allow buttons to shrink */
+            overflow: hidden; /* Prevent text overflow */
+            text-overflow: ellipsis; /* Add ellipsis for overflow text */
         }
 
         .btn.sound-toggle {
@@ -162,6 +164,7 @@
             height: min(400px, 90vw);
             position: relative;
             box-shadow: 0 0 30px rgba(0, 255, 255, 0.5), inset 0 0 30px rgba(0, 255, 255, 0.1);
+            overflow: hidden; /* Ensure content stays within bounds */
         }
 
         .grid {
@@ -310,7 +313,38 @@
 
         @media (max-width: 480px) {
             .game-container {
-                margin-top: 10vh; /* Reduced from 25vh for mobile */
+                position: fixed;
+                top: 1%;
+                left: 50%;
+                transform: translateX(-50%) scale(0.85);
+                margin-top: 0;
+                padding: 15px;
+                width: 100%;
+                max-width: 100%;
+                overflow: hidden;
+            }
+
+            .game-board {
+                width: min(350px, 85vw);
+                height: min(350px, 85vw);
+                margin: 0 auto;
+            }
+
+            .btn {
+                font-size: 0.7rem; /* Smaller font for mobile */
+                padding: 8px 10px; /* Smaller padding */
+            }
+
+            .score-container {
+                gap: 10px;
+            }
+
+            .score-box {
+                padding: 10px;
+            }
+
+            .score-value {
+                font-size: 1.4rem;
             }
 
             .instructions-content {
@@ -654,7 +688,6 @@
                 document.getElementById('try-again-btn').addEventListener('click', () => this.restart());
 
                 document.addEventListener('keydown', (e) => {
-                    // Added a check for isAnimating to prevent input during tile movements
                     if (this.isAnimating) return;
                     let moved = false;
                     switch(e.key) {
@@ -668,14 +701,20 @@
                 let startX, startY;
                 const gameBoard = document.querySelector('.game-board');
                 
+                // Prevent default touch behavior on the game board
                 gameBoard.addEventListener('touchstart', (e) => {
-                    if (this.isAnimating) return; // Prevent input during animation
+                    if (this.isAnimating) return;
                     startX = e.touches[0].clientX;
                     startY = e.touches[0].clientY;
-                }, {passive: true});
+                    e.preventDefault(); // Prevent default only on game board
+                }, { passive: false });
+
+                gameBoard.addEventListener('touchmove', (e) => {
+                    e.preventDefault(); // Prevent scrolling while touching the game board
+                }, { passive: false });
 
                 gameBoard.addEventListener('touchend', (e) => {
-                    if (this.isAnimating || !startX || !startY) return; // Prevent input during animation
+                    if (this.isAnimating || !startX || !startY) return;
                     
                     const endX = e.changedTouches[0].clientX;
                     const endY = e.changedTouches[0].clientY;
@@ -693,7 +732,23 @@
                     }
                     startX = null;
                     startY = null;
-                }, {passive: true});
+                    e.preventDefault(); // Prevent default only on game board
+                }, { passive: false });
+
+                // Handle page visibility changes
+                document.addEventListener('visibilitychange', () => {
+                    if (document.hidden) {
+                        // Pause all audio when page is hidden
+                        this.bgMusic1.pause();
+                        this.bgMusic2.pause();
+                    } else if (this.musicStarted && !this.isMuted) {
+                        // Resume current track when page becomes visible
+                        const currentTrack = this.bgMusic1.paused ? this.bgMusic2 : this.bgMusic1;
+                        if (currentTrack.currentTime > 0) {
+                            currentTrack.play().catch(error => console.log('Audio play failed:', error));
+                        }
+                    }
+                });
             }
 
             playNextBackgroundTrack() {
