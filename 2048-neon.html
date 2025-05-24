@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2048 Neon Cyberpunk</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/Pass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Orbitron', monospace;
+            background: #000;
+            color: #00ffff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            padding: 20px;
+        }
+
+        #cyberpunk-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        .game-container {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            padding: 20px;
+            width: 100%;
+            max-width: 600px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 20px;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            font-size: clamp(2rem, 5vw, 3.5rem);
+            font-weight: 900;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px #00ffff, 0 0 40px #00ffff, 0 0 60px #00ffff;
+            animation: titleGlow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes titleGlow {
+            from { text-shadow: 0 0 20px #00ffff, 0 0 40px #00ffff, 0 0 60px #00ffff; }
+            to { text-shadow: 0 0 30px #ff00ff, 0 0 50px #ff00ff, 0 0 70px #ff00ff; }
+        }
+
+        .subtitle {
+            font-size: clamp(0.8rem, 2vw, 1.2rem);
+            color: #ff00ff;
+            margin-bottom: 30px;
+            text-shadow: 0 0 10px #ff00ff;
+        }
+
+        .score-container {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .score-box {
+            background: rgba(0, 255, 255, 0.1);
+            border: 2px solid #00ffff;
+            border-radius: 10px;
+            padding: 15px;
+            flex: 1;
+            min-width: 120px;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3), inset 0 0 20px rgba(0, 255, 255, 0.1);
+        }
+
+        .score-label {
+            font-size: 0.9rem;
+            color: #00ffff;
+            margin-bottom: 5px;
+        }
+
+        .score-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #ffffff;
+            text-shadow: 0 0 10px #00ffff;
+        }
+
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #ff00ff, #00ffff);
+            border: none;
+            border-radius: 8px;
+            padding: clamp(8px, 2vw, 12px) clamp(16px, 3vw, 24px);
+            font-family: 'Orbitron', monospace;
+            font-weight: 700;
+            font-size: clamp(0.8rem, 2vw, 1rem);
+            color: #000;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 15px rgba(255, 0, 255, 0.5);
+            white-space: nowrap;
+        }
+
+        .btn.sound-toggle {
+            background: linear-gradient(45deg, #00ffff, #ff00ff);
+        }
+
+        .btn.sound-toggle.muted {
+            background: linear-gradient(45deg, #666666, #999999);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 25px rgba(255, 0, 255, 0.8);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .game-board {
+            background: rgba(0, 0, 0, 0.8);
+            border: 3px solid #00ffff;
+            border-radius: 15px;
+            padding: 15px;
+            margin: 0 auto;
+            width: min(400px, 90vw);
+            height: min(400px, 90vw);
+            position: relative;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.5), inset 0 0 30px rgba(0, 255, 255, 0.1);
+        }
+
+        .grid {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .grid-background {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            gap: 10px;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .grid-cell {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 8px;
+        }
+
+        .tile {
+            position: absolute;
+            width: calc((100% - 30px) / 4);
+            height: calc((100% - 30px) / 4);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(1.2rem, 4vw, 1.5rem);
+            font-weight: 700;
+            transition: all 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            z-index: 10;
+        }
+        /* Tile styles from 2 to 2048 */
+        .tile.tile-2 { background: linear-gradient(45deg, #001a33, #003366); color: #00ffff; border: 2px solid #00ffff; box-shadow: 0 0 15px rgba(0, 255, 255, 0.4); }
+        .tile.tile-4 { background: linear-gradient(45deg, #003366, #0066cc); color: #ffffff; border: 2px solid #0099ff; box-shadow: 0 0 15px rgba(0, 153, 255, 0.4); }
+        .tile.tile-8 { background: linear-gradient(45deg, #330066, #6600cc); color: #ffffff; border: 2px solid #9933ff; box-shadow: 0 0 15px rgba(153, 51, 255, 0.4); }
+        .tile.tile-16 { background: linear-gradient(45deg, #006600, #00cc00); color: #ffffff; border: 2px solid #00ff00; box-shadow: 0 0 15px rgba(0, 255, 0, 0.4); }
+        .tile.tile-32 { background: linear-gradient(45deg, #cc6600, #ff9900); color: #ffffff; border: 2px solid #ffcc00; box-shadow: 0 0 15px rgba(255, 204, 0, 0.4); }
+        .tile.tile-64 { background: linear-gradient(45deg, #cc0066, #ff0099); color: #ffffff; border: 2px solid #ff33cc; box-shadow: 0 0 15px rgba(255, 51, 204, 0.4); }
+        .tile.tile-128 { background: linear-gradient(45deg, #ffcc00, #ffff00); color: #000000; border: 2px solid #ffff66; box-shadow: 0 0 20px rgba(255, 255, 102, 0.6); font-size: 1.3rem; }
+        .tile.tile-256 { background: linear-gradient(45deg, #ff6600, #ff3300); color: #ffffff; border: 2px solid #ff6633; box-shadow: 0 0 20px rgba(255, 102, 51, 0.6); font-size: 1.3rem; }
+        .tile.tile-512 { background: linear-gradient(45deg, #9900cc, #cc00ff); color: #ffffff; border: 2px solid #ff66ff; box-shadow: 0 0 25px rgba(255, 102, 255, 0.7); font-size: 1.2rem; }
+        .tile.tile-1024 { background: linear-gradient(45deg, #0099ff, #00ccff); color: #ffffff; border: 2px solid #66ddff; box-shadow: 0 0 25px rgba(102, 221, 255, 0.7); font-size: 1.1rem; }
+        .tile.tile-2048 { background: linear-gradient(45deg, #ffffff, #ffccff); color: #000000; border: 2px solid #ffffff; box-shadow: 0 0 30px rgba(255, 255, 255, 0.8); font-size: 1rem; animation: victory 1s ease infinite alternate; }
+
+
+        @keyframes victory {
+            from { transform: scale(1); }
+            to { transform: scale(1.05); }
+        }
+
+        .tile.new-tile {
+            animation: tileAppear 0.3s ease;
+        }
+
+        @keyframes tileAppear {
+            from { transform: scale(0); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .tile.merged {
+            animation: tileMerge 0.3s ease;
+        }
+
+        @keyframes tileMerge {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        .instructions {
+            margin-top: 30px;
+            padding: 20px;
+            background: rgba(0, 255, 255, 0.05);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 10px;
+            font-size: clamp(0.8rem, 2vw, 0.9rem);
+            color: #00ffff;
+            text-align: left;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+        }
+
+        .instructions h3 {
+            color: #ff00ff;
+            font-size: clamp(1rem, 2.5vw, 1.2rem);
+            margin-bottom: 15px;
+            text-align: center;
+            text-shadow: 0 0 10px #ff00ff;
+        }
+
+        .instructions p {
+            margin: 8px 0;
+            text-shadow: 0 0 5px #00ffff;
+            line-height: 1.4;
+        }
+
+        .instructions strong {
+            color: #ffffff;
+            text-shadow: 0 0 8px #00ffff;
+        }
+
+        .game-over {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 15px;
+            z-index: 100;
+        }
+
+        .game-over h2 {
+            font-size: 2.5rem;
+            color: #ff0066;
+            text-shadow: 0 0 20px #ff0066;
+            margin-bottom: 20px;
+        }
+
+        .game-over.victory h2 {
+            color: #00ff00;
+            text-shadow: 0 0 20px #00ff00;
+        }
+
+        .hidden {
+            display: none !important; /* Added !important for robustness */
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+
+            .game-container {
+                padding: 15px;
+            }
+
+            .score-container {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .score-box {
+                width: 100%;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .btn {
+                width: 100%;
+                max-width: 200px;
+            }
+
+            .instructions {
+                margin-top: 20px;
+                padding: 15px;
+            }
+        }
+
+        @media (max-height: 700px) {
+            .game-container {
+                padding: 10px;
+            }
+
+            h1 {
+                margin-bottom: 5px;
+            }
+
+            .subtitle {
+                margin-bottom: 15px;
+            }
+
+            .score-container {
+                margin-bottom: 10px;
+            }
+
+            .controls {
+                margin-bottom: 10px;
+            }
+
+            .instructions {
+                margin-top: 15px;
+                padding: 10px;
+            }
+        }
+    </style>
+    <script>
+        class CyberpunkBackground {
+            constructor() {
+                this.canvas = document.getElementById('cyberpunk-bg');
+                // Ensure canvas exists before proceeding
+                if (!this.canvas) {
+                    console.error("Cyberpunk background canvas not found!");
+                    return;
+                }
+                this.initThreeJS();
+            }
+
+            initThreeJS() {
+                // Scene
+                this.scene = new THREE.Scene();
+                // Using parameters from the latest 'threejs_neon_road' artifact
+                this.scene.fog = new THREE.Fog(0x000000, 70, 650); 
+
+                // Camera
+                this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1500);
+                this.camera.position.set(0, 25, 90); 
+                this.camera.lookAt(0, 10, 0); 
+
+                // Renderer
+                this.renderer = new THREE.WebGLRenderer({ 
+                    canvas: this.canvas,
+                    antialias: true 
+                });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setClearColor(0x000000);
+
+                // Clock
+                this.clock = new THREE.Clock();
+
+                // Dynamic Speed Variables from 'threejs_neon_road'
+                this.currentMovementSpeed = 0.1;
+                this.MAX_MOVEMENT_SPEED = 1.25;
+                this.ACCELERATION = 0.00015;
+
+                // Dynamic Color Variables from 'threejs_neon_road'
+                this.mountainColorHue = 0.75;
+                this.HUE_SHIFT_SPEED = 0.0001;
+
+                // Configuration constants from 'threejs_neon_road'
+                this.ROAD_WIDTH = 25; 
+                this.ROAD_SEGMENT_LENGTH = 300;
+                this.NUM_SEGMENTS = 4;
+                this.MOUNTAIN_WIDTH = 400; 
+                this.MOUNTAIN_DEPTH = this.ROAD_SEGMENT_LENGTH;
+                this.MOUNTAIN_MAX_HEIGHT = 60; 
+                this.MOUNTAIN_HORIZONTAL_OFFSET = this.ROAD_WIDTH / 2 + 5; 
+
+                // Colors from 'threejs_neon_road'
+                this.ROAD_COLOR_SOLID = 0x0A0A0A;
+                this.CENTER_LINE_COLOR = 0xDADA00; 
+                this.AMBIENT_LIGHT_COLOR = 0x303030;
+                this.DIRECTIONAL_LIGHT_COLOR = 0x00FFFF;
+
+                // Arrays to store segments
+                this.roadSegments = [];
+                this.centerLineSegments = [];
+                this.mountainSegmentsLeft = [];
+                this.mountainSegmentsRight = [];
+
+                // Lighting
+                const ambientLight = new THREE.AmbientLight(this.AMBIENT_LIGHT_COLOR, 0.5);
+                this.scene.add(ambientLight);
+
+                const directionalLight = new THREE.DirectionalLight(this.DIRECTIONAL_LIGHT_COLOR, 0.4);
+                directionalLight.position.set(0.5, 1, 0.2).normalize();
+                this.scene.add(directionalLight);
+
+                // Create initial segments
+                this.totalTrackLength = this.NUM_SEGMENTS * this.ROAD_SEGMENT_LENGTH; // Define for reset logic
+                for (let i = 0; i < this.NUM_SEGMENTS; i++) {
+                    const segmentBaseZ = -i * this.ROAD_SEGMENT_LENGTH;
+
+                    const road = this.createRoadSegment(segmentBaseZ);
+                    this.roadSegments.push(road);
+                    this.scene.add(road);
+
+                    const centerLine = this.createCenterLineSegment(segmentBaseZ);
+                    this.centerLineSegments.push(centerLine);
+                    this.scene.add(centerLine);
+
+                    const mountainL = this.createMountainSegment(segmentBaseZ, 'left');
+                    this.mountainSegmentsLeft.push(mountainL);
+                    this.scene.add(mountainL);
+
+                    const mountainR = this.createMountainSegment(segmentBaseZ, 'right');
+                    this.mountainSegmentsRight.push(mountainR);
+                    this.scene.add(mountainR);
+                }
+
+                // Post-processing - Bloom Effect from 'threejs_neon_road'
+                this.composer = new THREE.EffectComposer(this.renderer);
+                const renderPass = new THREE.RenderPass(this.scene, this.camera);
+                this.composer.addPass(renderPass);
+
+                this.bloomPass = new THREE.UnrealBloomPass(
+                    new THREE.Vector2(window.innerWidth, window.innerHeight),
+                    1.9, 
+                    0.55, 
+                    0.88  // Threshold from 'threejs_neon_road'
+                );
+                this.composer.addPass(this.bloomPass);
+
+                window.addEventListener('resize', () => this.onWindowResize(), false);
+                this.animate();
+            }
+
+            createRoadSegment(zPos) {
+                const geometry = new THREE.PlaneGeometry(this.ROAD_WIDTH, this.ROAD_SEGMENT_LENGTH, 1, 1);
+                const material = new THREE.MeshBasicMaterial({ 
+                    color: this.ROAD_COLOR_SOLID
+                });
+                const plane = new THREE.Mesh(geometry, material);
+                plane.rotation.x = -Math.PI / 2;
+                plane.position.set(0, 0, zPos - this.ROAD_SEGMENT_LENGTH / 2);
+                return plane;
+            }
+
+            createCenterLineSegment(zPos) {
+                const lineGeometry = new THREE.BoxGeometry(0.35, 0.15, this.ROAD_SEGMENT_LENGTH);
+                const lineMaterial = new THREE.MeshBasicMaterial({ color: this.CENTER_LINE_COLOR });
+                const line = new THREE.Mesh(lineGeometry, lineMaterial);
+                line.position.set(0, 0.1, zPos - this.ROAD_SEGMENT_LENGTH / 2);
+                return line;
+            }
+
+            createMountainSegment(zPos, side) {
+                const geometry = new THREE.PlaneGeometry(this.MOUNTAIN_WIDTH, this.MOUNTAIN_DEPTH, 50, 15);
+                const positions = geometry.attributes.position;
+                const vertex = new THREE.Vector3();
+
+                for (let i = 0; i < positions.count; i++) {
+                    vertex.fromBufferAttribute(positions, i);
+                    let height = 0;
+                    const normalizedX = Math.abs(vertex.x / (this.MOUNTAIN_WIDTH / 2));
+                    let peakFactor = Math.pow(1.0 - normalizedX, 0.8) + (1.0 - normalizedX) * 0.3; 
+                    peakFactor = Math.max(0.05, peakFactor);
+
+                    height += Math.sin(vertex.y * 0.015 + vertex.x * 0.005) * 20 * peakFactor;
+                    height += Math.cos(vertex.y * 0.07 + vertex.x * 0.03) * 15 * peakFactor * (Math.random() * 0.4 + 0.6);
+                    height += Math.sin(vertex.y * 0.18 - vertex.x * 0.08) * 8 * peakFactor;
+                    if (Math.random() < 0.025 * peakFactor) {
+                        height += (Math.random() * 25 + 5) * peakFactor; 
+                    }
+                    height += (Math.random() - 0.5) * 8 * peakFactor;
+                    height = Math.max(0, height);
+                    height = Math.min(height, this.MOUNTAIN_MAX_HEIGHT * (0.5 + Math.random() * 0.5));
+                    positions.setZ(i, height);
+                }
+                geometry.attributes.position.needsUpdate = true;
+                geometry.computeVertexNormals();
+
+                const material = new THREE.MeshBasicMaterial({ 
+                    wireframe: true
+                    // Color will be set in animate loop
+                });
+                const mountain = new THREE.Mesh(geometry, material);
+                mountain.rotation.x = -Math.PI / 2;
+                
+                const xOffset = this.MOUNTAIN_HORIZONTAL_OFFSET + this.MOUNTAIN_WIDTH / 2;
+                mountain.position.set(
+                    (side === 'left' ? -1 : 1) * xOffset,
+                    0,
+                    zPos - this.MOUNTAIN_DEPTH / 2
+                );
+                return mountain;
+            }
+
+            onWindowResize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                if (this.composer) { // Check if composer exists
+                    this.composer.setSize(window.innerWidth, window.innerHeight);
+                }
+            }
+
+            animate() {
+                requestAnimationFrame(() => this.animate()); // Use arrow function for correct 'this'
+                const delta = this.clock.getDelta();
+
+                if (this.currentMovementSpeed < this.MAX_MOVEMENT_SPEED) {
+                    this.currentMovementSpeed += this.ACCELERATION;
+                } else {
+                    this.currentMovementSpeed = this.MAX_MOVEMENT_SPEED;
+                }
+
+                this.mountainColorHue += this.HUE_SHIFT_SPEED;
+                if (this.mountainColorHue > 1) {
+                    this.mountainColorHue -= 1;
+                }
+                const newMountainColor = new THREE.Color().setHSL(this.mountainColorHue, 1.0, 0.6);
+
+                this.roadSegments.forEach(segment => {
+                    segment.position.z += this.currentMovementSpeed;
+                    if (segment.position.z - this.ROAD_SEGMENT_LENGTH / 2 > this.camera.position.z) {
+                        segment.position.z -= this.totalTrackLength;
+                    }
+                });
+
+                this.centerLineSegments.forEach(segment => {
+                    segment.position.z += this.currentMovementSpeed;
+                    if (segment.position.z - this.ROAD_SEGMENT_LENGTH / 2 > this.camera.position.z) {
+                        segment.position.z -= this.totalTrackLength;
+                    }
+                });
+
+                [...this.mountainSegmentsLeft, ...this.mountainSegmentsRight].forEach(segment => {
+                    segment.position.z += this.currentMovementSpeed;
+                    segment.material.color.set(newMountainColor);
+                    if (segment.position.z - this.MOUNTAIN_DEPTH / 2 > this.camera.position.z) {
+                        segment.position.z -= this.totalTrackLength;
+                    }
+                });
+
+                if (this.composer) { // Check if composer exists
+                    this.composer.render(delta);
+                } else {
+                     this.renderer.render(this.scene, this.camera); // Fallback if no composer
+                }
+            }
+        }
+
+        class Game2048 {
+            constructor() {
+                this.grid = [];
+                this.tiles = [];
+                this.score = 0;
+                this.bestScore = parseInt(localStorage.getItem('2048-best-score') || '0');
+                this.previousState = null;
+                this.size = 4;
+                this.tileIdCounter = 0;
+                this.isAnimating = false;
+                this.isMuted = false;
+                // this.isFirstGame = true; // Not used
+                this.musicStarted = false;
+                
+                this.initializeAudio();
+                this.initGameLogic(); // Renamed from init to avoid conflict
+                this.setupEventListeners();
+                
+                // Initialize cyberpunk background AFTER game elements are potentially in DOM
+                // This ensures the canvas element is available.
+                this.background = new CyberpunkBackground();
+            }
+
+            initializeAudio() {
+                // Background music
+                this.bgMusic1 = new Audio('sounds/midnight_run.mp3');
+                this.bgMusic2 = new Audio('sounds/neon-dreams.mp3');
+                this.bgMusic1.loop = false;
+                this.bgMusic2.loop = false;
+                
+                // Sound effects
+                this.moveSound = new Audio('sounds/swipe.mp3');
+                
+                // Set volume
+                this.bgMusic1.volume = 0.3;
+                this.bgMusic2.volume = 0.3;
+                this.moveSound.volume = 0.5;
+                
+                // Event listeners for background music
+                this.bgMusic1.addEventListener('ended', () => this.playNextBackgroundTrack());
+                this.bgMusic2.addEventListener('ended', () => this.playNextBackgroundTrack());
+            }
+
+            setupEventListeners() {
+                document.getElementById('new-game-btn').addEventListener('click', () => this.restart());
+                document.getElementById('undo-btn').addEventListener('click', () => this.undo());
+                document.getElementById('sound-toggle').addEventListener('click', () => this.toggleSound());
+                document.getElementById('try-again-btn').addEventListener('click', () => this.restart());
+
+                document.addEventListener('keydown', (e) => {
+                    // Added a check for isAnimating to prevent input during tile movements
+                    if (this.isAnimating) return;
+                    let moved = false;
+                    switch(e.key) {
+                        case 'ArrowLeft': e.preventDefault(); moved = this.move('left'); break;
+                        case 'ArrowRight': e.preventDefault(); moved = this.move('right'); break;
+                        case 'ArrowUp': e.preventDefault(); moved = this.move('up'); break;
+                        case 'ArrowDown': e.preventDefault(); moved = this.move('down'); break;
+                    }
+                });
+
+                let startX, startY;
+                const gameBoard = document.querySelector('.game-board');
+                
+                gameBoard.addEventListener('touchstart', (e) => {
+                    if (this.isAnimating) return; // Prevent input during animation
+                    startX = e.touches[0].clientX;
+                    startY = e.touches[0].clientY;
+                }, {passive: true});
+
+                gameBoard.addEventListener('touchend', (e) => {
+                    if (this.isAnimating || !startX || !startY) return; // Prevent input during animation
+                    
+                    const endX = e.changedTouches[0].clientX;
+                    const endY = e.changedTouches[0].clientY;
+                    
+                    const diffX = startX - endX;
+                    const diffY = startY - endY;
+                    let moved = false;
+                    
+                    if (Math.abs(diffX) > Math.abs(diffY)) { // Horizontal swipe
+                        if (diffX > 30) { moved = this.move('left'); } 
+                        else if (diffX < -30) { moved = this.move('right'); }
+                    } else { // Vertical swipe
+                        if (diffY > 30) { moved = this.move('up'); } 
+                        else if (diffY < -30) { moved = this.move('down'); }
+                    }
+                    startX = null;
+                    startY = null;
+                }, {passive: true});
+            }
+
+            playNextBackgroundTrack() {
+                if (this.isMuted) return;
+                
+                // Determine which track is currently playing
+                const currentTrack = this.bgMusic1.paused ? this.bgMusic2 : this.bgMusic1;
+                const nextTrack = currentTrack === this.bgMusic1 ? this.bgMusic2 : this.bgMusic1;
+                
+                // Stop current track and play next one from start
+                currentTrack.pause();
+                nextTrack.currentTime = 0;
+                nextTrack.play().catch(error => console.log('Audio play failed:', error));
+            }
+
+            initGameLogic() {
+                this.createGrid();
+                // Don't add initial tiles here anymore
+                this.updateDisplay();
+            }
+
+            createGrid() {
+                this.grid = [];
+                this.tiles = []; // Clear tiles array as well
+                for (let i = 0; i < this.size; i++) {
+                    this.grid[i] = [];
+                    for (let j = 0; j < this.size; j++) {
+                        this.grid[i][j] = null;
+                    }
+                }
+
+                const gridBackground = document.getElementById('grid-background');
+                gridBackground.innerHTML = ''; // Clear previous cells
+                for (let i = 0; i < this.size * this.size; i++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'grid-cell';
+                    gridBackground.appendChild(cell);
+                }
+
+                const gridElement = document.getElementById('grid');
+                const existingTiles = gridElement.querySelectorAll('.tile');
+                existingTiles.forEach(tile => tile.remove());
+            }
+
+            createTile(value, row, col) {
+                const tile = document.createElement('div');
+                tile.className = `tile tile-${value}`;
+                tile.textContent = value;
+                tile.id = `tile-${this.tileIdCounter++}`;
+                
+                const gridElement = document.getElementById('grid');
+                gridElement.appendChild(tile);
+                
+                const tileObj = { element: tile, value: value, row: row, col: col, id: tile.id, mergedFrom: null };
+                
+                this.tiles.push(tileObj);
+                this.grid[row][col] = tileObj;
+                this.positionTile(tileObj);
+                
+                setTimeout(() => { tile.classList.add('new-tile'); }, 10); // Animation delay
+                return tileObj;
+            }
+
+            positionTile(tile) {
+                // Calculate based on 10px gap defined in CSS for .grid-background
+                const tileWidthPercent = (100 - (this.size -1) * (10 / 400 * 100) ) / this.size; // 10px gap out of 400px board width
+                const gapPercent = (10 / 400 * 100); // Gap as percentage of board width
+
+                const x = tile.col * (tileWidthPercent + gapPercent);
+                const y = tile.row * (tileWidthPercent + gapPercent);
+                tile.element.style.left = `${x}%`;
+                tile.element.style.top = `${y}%`;
+            }
+
+            addRandomTile() {
+                const emptyCells = [];
+                for (let i = 0; i < this.size; i++) {
+                    for (let j = 0; j < this.size; j++) {
+                        if (this.grid[i][j] === null) {
+                            emptyCells.push({row: i, col: j});
+                        }
+                    }
+                }
+                if (emptyCells.length > 0) {
+                    const randomCell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+                    const value = Math.random() < 0.9 ? 2 : 4;
+                    this.createTile(value, randomCell.row, randomCell.col);
+                }
+            }
+
+            removeTile(tile) {
+                if (tile && tile.element) {
+                    tile.element.remove();
+                    const index = this.tiles.findIndex(t => t.id === tile.id); // Find by ID
+                    if (index > -1) {
+                        this.tiles.splice(index, 1);
+                    }
+                }
+            }
+
+            updateTile(tile, newValue) {
+                tile.value = newValue;
+                tile.element.textContent = newValue;
+                tile.element.className = `tile tile-${newValue}`; // Update class for new style
+                
+                tile.element.classList.add('merged');
+                setTimeout(() => { tile.element.classList.remove('merged'); }, 300);
+            }
+
+            saveState() {
+                this.previousState = {
+                    tiles: this.tiles.map(tile => ({
+                        value: tile.value, row: tile.row, col: tile.col, id: tile.id
+                    })),
+                    score: this.score
+                };
+            }
+
+            async move(direction) {
+                if (this.isAnimating) return false; // Return false if no move can be made
+                
+                this.saveState();
+                this.isAnimating = true;
+                
+                let moved = false;
+                const newGrid = Array(this.size).fill(null).map(() => Array(this.size).fill(null));
+                const mergedTilesThisTurn = []; // Track tiles that have merged in this move
+
+                const vectors = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
+                const vector = vectors[direction];
+
+                // Determine traversal order
+                const traverseX = (direction === 'left') ? [...Array(this.size).keys()] : [...Array(this.size).keys()].reverse();
+                const traverseY = (direction === 'up') ? [...Array(this.size).keys()] : [...Array(this.size).keys()].reverse();
+
+                for (const y of traverseY) {
+                    for (const x of traverseX) {
+                        const currentTile = this.grid[y][x];
+                        if (currentTile) {
+                            let currentX = x;
+                            let currentY = y;
+                            let nextX = currentX + vector.x;
+                            let nextY = currentY + vector.y;
+                            let furthest = { x: currentX, y: currentY };
+
+                            // Find the furthest possible position
+                            while (nextX >= 0 && nextX < this.size && nextY >= 0 && nextY < this.size && !newGrid[nextY][nextX]) {
+                                furthest = { x: nextX, y: nextY };
+                                nextX += vector.x;
+                                nextY += vector.y;
+                            }
+                            
+                            // Check for merge
+                            if (nextX >= 0 && nextX < this.size && nextY >= 0 && nextY < this.size) {
+                                const otherTile = newGrid[nextY][nextX];
+                                if (otherTile && otherTile.value === currentTile.value && !mergedTilesThisTurn.includes(otherTile.id)) {
+                                    // Merge
+                                    const newValue = currentTile.value * 2;
+                                    this.score += newValue;
+                                    
+                                    // Update the existing tile (otherTile) that currentTile merges into
+                                    this.updateTile(otherTile, newValue);
+                                    mergedTilesThisTurn.push(otherTile.id); // Mark as merged
+
+                                    // Remove currentTile from display and logical grid
+                                    this.removeTile(currentTile);
+                                    this.grid[y][x] = null; // Clear original position
+                                    moved = true;
+                                    continue; // Tile merged, no need to place it separately
+                                }
+                            }
+
+                            // Move tile to furthest position
+                            if (furthest.x !== x || furthest.y !== y) {
+                                newGrid[furthest.y][furthest.x] = currentTile;
+                                if (this.grid[y][x]) this.grid[y][x] = null; // Clear old position
+                                currentTile.row = furthest.y;
+                                currentTile.col = furthest.x;
+                                this.positionTile(currentTile);
+                                moved = true;
+                            } else {
+                                // Tile didn't move, place it back in newGrid
+                                newGrid[y][x] = currentTile;
+                            }
+                        }
+                    }
+                }
+                
+                this.grid = newGrid; // Update the main grid
+
+                if (moved) {
+                    this.playMoveSound();
+                    await new Promise(resolve => setTimeout(resolve, 150)); // Short delay for move animation
+                    this.addRandomTile();
+                    this.updateDisplay();
+                    if (this.isGameWon()) { this.showGameOver(true); } 
+                    else if (this.isGameOver()) { this.showGameOver(false); }
+                }
+                
+                this.isAnimating = false;
+                return moved; // Return true if any tile moved or merged
+            }
+
+
+            isGameOver() {
+                for (let i = 0; i < this.size; i++) {
+                    for (let j = 0; j < this.size; j++) {
+                        if (this.grid[i][j] === null) return false; // Empty cell exists
+                        const current = this.grid[i][j];
+                        if (current) {
+                            // Check right
+                            if (j < this.size - 1 && this.grid[i][j+1] && this.grid[i][j+1].value === current.value) return false;
+                            // Check down
+                            if (i < this.size - 1 && this.grid[i+1][j] && this.grid[i+1][j].value === current.value) return false;
+                        }
+                    }
+                }
+                return true; // No empty cells and no possible merges
+            }
+
+            isGameWon() {
+                return this.tiles.some(tile => tile.value === 2048);
+            }
+
+            showGameOver(isVictory) {
+                const gameOverElement = document.getElementById('game-over');
+                const gameOverText = document.getElementById('game-over-text');
+                gameOverElement.className = isVictory ? 'game-over victory' : 'game-over';
+                gameOverText.textContent = isVictory ? 'YOU WIN!' : 'GAME OVER';
+                gameOverElement.classList.remove('hidden');
+            }
+
+            restart() {
+                // Only start music on first game start
+                if (!this.musicStarted && !this.isMuted) {
+                    this.musicStarted = true;
+                    // Randomly select first track
+                    const firstTrack = Math.random() < 0.5 ? this.bgMusic1 : this.bgMusic2;
+                    firstTrack.currentTime = 0;
+                    firstTrack.play().catch(error => console.log('Audio play failed:', error));
+                }
+
+                this.score = 0;
+                this.previousState = null;
+                this.isAnimating = false;
+                
+                // Clear existing tiles
+                this.tiles.forEach(tile => {
+                    if (tile.element && tile.element.parentNode) {
+                        tile.element.parentNode.removeChild(tile.element);
+                    }
+                });
+                
+                this.tiles = [];
+                this.tileIdCounter = 0;
+                this.grid = Array(this.size).fill(null).map(() => Array(this.size).fill(null));
+                
+                // Add initial tiles only when restarting
+                this.addRandomTile();
+                this.addRandomTile();
+                this.updateDisplay();
+                document.getElementById('game-over').classList.add('hidden');
+            }
+
+            undo() {
+                if (this.isAnimating || !this.previousState) return;
+
+                    this.tiles.forEach(tile => {
+                        if (tile.element && tile.element.parentNode) {
+                            tile.element.parentNode.removeChild(tile.element);
+                        }
+                    });
+                    
+                this.grid = Array(this.size).fill(null).map(() => Array(this.size).fill(null));
+                     this.tiles = [];
+                
+                     this.previousState.tiles.forEach(tileData => {
+                    // Re-create tile element
+                    const tileElement = document.createElement('div');
+                    tileElement.className = `tile tile-${tileData.value}`;
+                    tileElement.textContent = tileData.value;
+                    tileElement.id = tileData.id; // Use original ID
+                    
+                    const gridElement = document.getElementById('grid');
+                    gridElement.appendChild(tileElement);
+                    
+                         const tile = {
+                        value: tileData.value, row: tileData.row, col: tileData.col,
+                        id: tileData.id, element: tileElement, mergedFrom: null
+                    };
+                    
+                         this.tiles.push(tile);
+                    this.grid[tileData.row][tileData.col] = tile;
+                    this.positionTile(tile);
+                     });
+                    
+                    this.score = this.previousState.score;
+                this.previousState = null; // Can only undo once
+                    this.updateDisplay();
+                document.getElementById('game-over').classList.add('hidden'); // Hide game over if it was shown
+            }
+
+            updateDisplay() {
+                document.getElementById('score').textContent = this.score;
+                if (this.score > this.bestScore) {
+                    this.bestScore = this.score;
+                    localStorage.setItem('2048-best-score', this.bestScore.toString());
+                }
+                document.getElementById('best-score').textContent = this.bestScore;
+                const undoBtn = document.getElementById('undo-btn');
+                undoBtn.style.opacity = this.previousState ? '1' : '0.5';
+                 undoBtn.disabled = !this.previousState; // Disable if no previous state
+            }
+
+            toggleSound() {
+                this.isMuted = !this.isMuted;
+                const soundToggle = document.getElementById('sound-toggle');
+                
+                if (this.isMuted) {
+                    this.bgMusic1.pause();
+                    this.bgMusic2.pause();
+                    soundToggle.textContent = 'SOUND OFF';
+                    soundToggle.classList.add('muted');
+                    } else {
+                    soundToggle.textContent = 'SOUND ON';
+                    soundToggle.classList.remove('muted');
+                    // If music was started before, resume the current track
+                    if (this.musicStarted) {
+                        const currentTrack = this.bgMusic1.paused ? this.bgMusic2 : this.bgMusic1;
+                        if (currentTrack.currentTime > 0) {
+                            currentTrack.play().catch(error => console.log('Audio play failed:', error));
+                        } else {
+                            this.playNextBackgroundTrack();
+                        }
+                    }
+                }
+            }
+
+            playMoveSound() {
+                if (!this.isMuted) {
+                    this.moveSound.currentTime = 0;
+                    this.moveSound.play().catch(e => console.error("Sound effect error:", e));
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            window.game = new Game2048();
+        });
+    </script>
+</head>
+<body>
+    <canvas id="cyberpunk-bg"></canvas> <div class="game-container">
+        <h1>2048</h1>
+        <div class="subtitle">NEON CYBERPUNK EDITION</div>
+        
+        <div class="score-container">
+            <div class="score-box">
+                <div class="score-label">SCORE</div>
+                <div class="score-value" id="score">0</div>
+            </div>
+            <div class="score-box">
+                <div class="score-label">BEST</div>
+                <div class="score-value" id="best-score">0</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="btn" id="new-game-btn">NEW GAME</button>
+            <button class="btn" id="undo-btn">UNDO</button>
+            <button class="btn sound-toggle" id="sound-toggle">SOUND ON</button>
+        </div>
+
+        <div class="game-board">
+            <div class="grid" id="grid">
+                <div class="grid-background" id="grid-background">
+                    </div>
+                </div>
+            <div class="game-over hidden" id="game-over">
+                <h2 id="game-over-text">GAME OVER</h2>
+                <button class="btn" id="try-again-btn">TRY AGAIN</button>
+            </div>
+        </div>
+
+        <div class="instructions">
+            <h3>How to Play</h3>
+            <p><strong>Controls:</strong> Use ARROW KEYS (desktop) or SWIPE (mobile) to move tiles</p>
+            <p><strong>Gameplay:</strong> When two tiles with the same number touch, they merge into one!</p>
+            <p><strong>Goal:</strong> Reach the 2048 tile to win! But you can continue playing to get higher scores.</p>
+            <p><strong>Strategy:</strong> Keep your highest tile in a corner and build around it.</p>
+        </div>
+    </div>
+</body>
+</html>
