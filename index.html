@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -56,6 +55,7 @@
             border-radius: 20px;
             box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
             backdrop-filter: blur(10px);
+            transform-origin: center center;
         }
 
         h1 {
@@ -305,6 +305,8 @@
 
             .game-container {
                 padding: 15px;
+                transform: scale(0.65);
+                margin: -10% 0; /* Compensate for the scaling to maintain vertical centering */
             }
 
             .score-container {
@@ -335,6 +337,8 @@
         @media (max-height: 700px) {
             .game-container {
                 padding: 10px;
+                transform: scale(0.7);
+                margin: -5% 0; /* Compensate for the scaling to maintain vertical centering */
             }
 
             h1 {
@@ -356,6 +360,22 @@
             .instructions {
                 margin-top: 15px;
                 padding: 10px;
+            }
+        }
+
+        /* Add a new media query for very small screens */
+        @media (max-width: 360px) {
+            .game-container {
+                transform: scale(0.6);
+                margin: -15% 0;
+            }
+        }
+
+        /* Add a new media query for landscape orientation on mobile */
+        @media (max-height: 500px) and (orientation: landscape) {
+            .game-container {
+                transform: scale(0.6);
+                margin: -10% 0;
             }
         }
     </style>
