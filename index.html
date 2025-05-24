@@ -30,8 +30,8 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            overflow: hidden;
+            justify-content: flex-start;
+            overflow-y: auto;
             padding: 20px;
         }
 
@@ -56,6 +56,7 @@
             box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
             backdrop-filter: blur(10px);
             transform-origin: center center;
+            margin-top: 15vh; /* Reduced from 25vh */
         }
 
         h1 {
@@ -83,7 +84,7 @@
             justify-content: space-between;
             margin-bottom: 20px;
             gap: 20px;
-            flex-wrap: wrap;
+            flex-wrap: nowrap; /* Prevent wrapping */
         }
 
         .score-box {
@@ -114,7 +115,7 @@
             display: flex;
             gap: 15px;
             justify-content: center;
-            flex-wrap: wrap;
+            flex-wrap: nowrap; /* Prevent wrapping */
         }
 
         .btn {
@@ -130,6 +131,8 @@
             transition: all 0.3s ease;
             box-shadow: 0 0 15px rgba(255, 0, 255, 0.5);
             white-space: nowrap;
+            flex: 1; /* Make buttons equal width */
+            min-width: 0; /* Allow buttons to shrink */
         }
 
         .btn.sound-toggle {
@@ -248,23 +251,30 @@
             box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
         }
 
-        .instructions h3 {
+        .instructions-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            padding: 5px 0;
+        }
+
+        .instructions-header h3 {
             color: #ff00ff;
             font-size: clamp(1rem, 2.5vw, 1.2rem);
-            margin-bottom: 15px;
-            text-align: center;
+            margin: 0;
+            text-align: left;
             text-shadow: 0 0 10px #ff00ff;
         }
 
-        .instructions p {
-            margin: 8px 0;
-            text-shadow: 0 0 5px #00ffff;
-            line-height: 1.4;
+        .instructions-content {
+            margin-top: 15px;
         }
 
-        .instructions strong {
-            color: #ffffff;
-            text-shadow: 0 0 8px #00ffff;
+        .toggle-icon {
+            color: #ff00ff;
+            font-size: 1.2rem;
+            transition: transform 0.3s ease;
         }
 
         .game-over {
@@ -295,42 +305,30 @@
         }
 
         .hidden {
-            display: none !important; /* Added !important for robustness */
+            display: none !important;
         }
 
         @media (max-width: 480px) {
-            body {
-                padding: 10px;
-            }
-
             .game-container {
-                padding: 15px;
-                transform: scale(0.65);
-                margin: -10% 0; /* Compensate for the scaling to maintain vertical centering */
+                margin-top: 10vh; /* Reduced from 25vh for mobile */
             }
 
-            .score-container {
-                flex-direction: column;
-                gap: 10px;
+            .instructions-content {
+                display: none;
             }
 
-            .score-box {
-                width: 100%;
+            .instructions-content.expanded {
+                display: block;
             }
 
-            .controls {
-                flex-direction: column;
-                align-items: center;
+            .toggle-icon {
+                display: block;
             }
+        }
 
-            .btn {
-                width: 100%;
-                max-width: 200px;
-            }
-
-            .instructions {
-                margin-top: 20px;
-                padding: 15px;
+        @media (min-width: 481px) {
+            .toggle-icon {
+                display: none;
             }
         }
 
@@ -338,7 +336,7 @@
             .game-container {
                 padding: 10px;
                 transform: scale(0.7);
-                margin: -5% 0; /* Compensate for the scaling to maintain vertical centering */
+                margin-top: 20vh; /* Slightly higher position for shorter screens */
             }
 
             h1 {
@@ -367,7 +365,7 @@
         @media (max-width: 360px) {
             .game-container {
                 transform: scale(0.6);
-                margin: -15% 0;
+                margin-top: 20vh;
             }
         }
 
@@ -375,7 +373,7 @@
         @media (max-height: 500px) and (orientation: landscape) {
             .game-container {
                 transform: scale(0.6);
-                margin: -10% 0;
+                margin-top: 15vh;
             }
         }
     </style>
@@ -1044,7 +1042,20 @@
 
         document.addEventListener('DOMContentLoaded', function() {
             window.game = new Game2048();
+            
+            // Initialize instructions state based on screen size
+            const instructionsContent = document.querySelector('.instructions-content');
+            if (window.innerWidth <= 480) {
+                instructionsContent.classList.remove('expanded');
+            }
         });
+
+        function toggleInstructions() {
+            const instructionsContent = document.querySelector('.instructions-content');
+            if (window.innerWidth <= 480) {
+                instructionsContent.classList.toggle('expanded');
+            }
+        }
     </script>
 </head>
 <body>
@@ -1081,11 +1092,16 @@
         </div>
 
         <div class="instructions">
-            <h3>How to Play</h3>
-            <p><strong>Controls:</strong> Use ARROW KEYS (desktop) or SWIPE (mobile) to move tiles</p>
-            <p><strong>Gameplay:</strong> When two tiles with the same number touch, they merge into one!</p>
-            <p><strong>Goal:</strong> Reach the 2048 tile to win! But you can continue playing to get higher scores.</p>
-            <p><strong>Strategy:</strong> Keep your highest tile in a corner and build around it.</p>
+            <div class="instructions-header" onclick="toggleInstructions()">
+                <h3>How to Play</h3>
+                <span class="toggle-icon">▼</span>
+            </div>
+            <div class="instructions-content">
+                <p><strong>Controls:</strong> Use ARROW KEYS (desktop) or SWIPE (mobile) to move tiles</p>
+                <p><strong>Gameplay:</strong> When two tiles with the same number touch, they merge into one!</p>
+                <p><strong>Goal:</strong> Reach the 2048 tile to win! But you can continue playing to get higher scores.</p>
+                <p><strong>Strategy:</strong> Keep your highest tile in a corner and build around it.</p>
+            </div>
         </div>
     </div>
 </body>
